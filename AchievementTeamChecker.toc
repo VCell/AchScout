@@ -1,8 +1,8 @@
-## Interface: 30300
+## Interface: 50503, 50504
 ## Title: Achievement Team Checker
 ## Notes: 在成就面板添加团队查询功能
 ## Author: 戒虑牧-狮心
-## Version: 1.0.1
+## Version: 1.1.0
 ## RequiredDeps: Blizzard_AchievementUI
 
 Core.lua 
