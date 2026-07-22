@@ -227,6 +227,9 @@ function ATC:AddSearchBox(parentFrame)
     searchBox:SetScript("OnEscapePressed", function(box)
         box:SetText("")
         box:ClearFocus()
+        -- box:SetText("")触发的OnTextChanged里userInput是false，不会走ShowAchievementSearch，
+        -- 这里显式同步一次，避免"框显示是空的，但self.searchText还是旧值、过滤仍然生效"这种状态不一致
+        ATC:ShowAchievementSearch("")
     end)
     searchBox:SetScript("OnEnterPressed", function(box)
         box:ClearFocus()
