@@ -149,20 +149,25 @@ function ATC:RenderFilteredAchievements()
     local numButtons = #buttons
     local numResults = #self.searchResults
     local selection = AchievementFrameAchievements and AchievementFrameAchievements.selection
+    local rowHeight = ACHIEVEMENTBUTTON_COLLAPSEDHEIGHT or 84
     local displayedHeight = 0
+    local extraHeight = 0 -- 展开详情的那一行会比默认行高高出一截，要单独补进totalHeight，否则可滚动区域不够，详情会被裁掉
 
     for i = 1, numButtons do
         local achievementIndex = self.searchResults[i + offset]
         if achievementIndex then
             AchievementButton_DisplayAchievement(buttons[i], category, achievementIndex, selection)
-            displayedHeight = displayedHeight + buttons[i]:GetHeight()
+            local buttonHeight = buttons[i]:GetHeight()
+            displayedHeight = displayedHeight + buttonHeight
+            if buttonHeight > rowHeight then
+                extraHeight = extraHeight + (buttonHeight - rowHeight)
+            end
         else
             buttons[i]:Hide()
         end
     end
 
-    local rowHeight = ACHIEVEMENTBUTTON_COLLAPSEDHEIGHT or 84
-    local totalHeight = numResults * rowHeight
+    local totalHeight = numResults * rowHeight + extraHeight
     HybridScrollFrame_Update(scrollFrame, totalHeight, displayedHeight)
 end
 
