@@ -1,4 +1,5 @@
 -- AchievementTeamChecker
+local L = _G.ATCLocale
 local ATC = {
     achievementButtons = {},
     eventFrame = nil,
@@ -76,7 +77,7 @@ function ATC:HookAchievementUI()
         end)
         self:InstallCustomAchievementsUpdate()
         self.isHooked = true
-        self:Print("成就团队检查插件已加载.")
+        self:Print(L.ADDON_LOADED)
         return
     end
     
@@ -217,7 +218,7 @@ function ATC:AddSearchBox(parentFrame)
 
     local label = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetPoint("BOTTOMLEFT", searchBox, "TOPLEFT", 0, 2)
-    label:SetText("搜索")
+    label:SetText(L.SEARCH_LABEL)
 
     searchBox:SetScript("OnTextChanged", function(box, userInput)
         if userInput then
@@ -245,7 +246,7 @@ function ATC:DelayHook()
                 ATC:AddQueryButtonToAchievement(button, category, achievement)
             end)
             self.isHooked = true
-            self:Print("成就团队检查插件已加载 DelayHook")
+            self:Print(L.ADDON_LOADED_DELAYHOOK)
         end
     end)
 end
@@ -282,7 +283,7 @@ function ATC:AddQueryButtonToAchievement(button, category, achievement)
     if not queryButton then
         queryButton = CreateFrame("Button", nil, button, "UIPanelButtonTemplate")
         queryButton:SetSize(80, 22)
-        queryButton:SetText("团队查询")
+        queryButton:SetText(L.QUERY_BUTTON)
         queryButton:SetPoint("TOPRIGHT", button, "TOPRIGHT", -75, -5)
         queryButton:SetFrameLevel(button:GetFrameLevel() + 1)
         queryButton:SetToplevel(true)
@@ -290,8 +291,8 @@ function ATC:AddQueryButtonToAchievement(button, category, achievement)
         -- 悬停提示
         queryButton:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText("查询团队成就完成情况")
-            GameTooltip:AddLine("点击在团队频道公布结果", 1, 1, 1, true)
+            GameTooltip:SetText(L.QUERY_BUTTON_TOOLTIP_TITLE)
+            GameTooltip:AddLine(L.QUERY_BUTTON_TOOLTIP_DESC, 1, 1, 1, true)
             GameTooltip:Show()
         end)
         
@@ -313,7 +314,7 @@ function ATC:AddOverviewButton(parentFrame)
     -- 创建团队检查按钮
     local pointsButton = CreateFrame("Button", nil, parentFrame, "UIPanelButtonTemplate")
     pointsButton:SetSize(80, 22)
-    pointsButton:SetText("点数排名")
+    pointsButton:SetText(L.POINTS_RANK_BUTTON)
     pointsButton:SetFrameStrata("HIGH")
     pointsButton:SetToplevel(true)
     pointsButton:SetPoint("TOP", AchievementFrame, "TOP", -15, -10)
@@ -325,8 +326,8 @@ function ATC:AddOverviewButton(parentFrame)
     pointsButton:SetHighlightFontObject("GameFontHighlight")
     pointsButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("成就点数排名")
-        GameTooltip:AddLine("检查团队中所有人的成就点数并通报排名", 1, 1, 1, true)
+        GameTooltip:SetText(L.POINTS_RANK_TOOLTIP_TITLE)
+        GameTooltip:AddLine(L.POINTS_RANK_TOOLTIP_DESC, 1, 1, 1, true)
         GameTooltip:Show()
     end)
     
@@ -337,7 +338,7 @@ function ATC:AddOverviewButton(parentFrame)
 
     local featButton = CreateFrame("Button", nil, parentFrame, "UIPanelButtonTemplate")
     featButton:SetSize(80, 22)
-    featButton:SetText("光辉排名")
+    featButton:SetText(L.FEAT_RANK_BUTTON)
     featButton:SetFrameStrata("HIGH")
     featButton:SetToplevel(true)
     featButton:SetPoint("LEFT", pointsButton, "RIGHT", 0, 0) -- 放在点数按钮右边
@@ -349,8 +350,8 @@ function ATC:AddOverviewButton(parentFrame)
     featButton:SetHighlightFontObject("GameFontHighlight")
     featButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("光辉事迹排名")
-        GameTooltip:AddLine("检查团队中所有人的光辉事迹数量并通报排名", 1, 1, 1, true)
+        GameTooltip:SetText(L.FEAT_RANK_TOOLTIP_TITLE)
+        GameTooltip:AddLine(L.FEAT_RANK_TOOLTIP_DESC, 1, 1, 1, true)
         GameTooltip:Show()
     end)
     
@@ -395,11 +396,11 @@ end
 -- 查询团队成就
 function ATC:QueryTeamAchievement(queryContent)
     if not IsInGroup() and not IsInRaid() then
-        self:Print("你不在团队中！")
+        self:Print(L.NOT_IN_GROUP)
         return
     end
     if self.queryState ~= nil then
-        self:Print(string.format("当前成就检查中，稍后重试"))
+        self:Print(L.QUERY_IN_PROGRESS)
         return
     end
 
@@ -432,7 +433,7 @@ function ATC:QueryTeamAchievement(queryContent)
         self:ReportResults()
     else
         query.isQuerying = true
-        self:Print("开始查询团队成员的成就完成情况...")
+        self:Print(L.QUERY_START)
         self:StartNextQuery()
         
         -- 设置总超时（备用，防止某些情况下查询卡住）
@@ -472,7 +473,7 @@ function ATC:StartNextQuery()
             if query.currentUnit == unit then
                 ATC:Debug(string.format("查询超时: %s", unit))
                 local name = GetUnitName(unit, true)
-                query.queryContent:OnQueryFailed(name .. ":超时")
+                query.queryContent:OnQueryFailed(name .. L.QUERY_TIMEOUT_SUFFIX)
                 query.currentUnit = nil
                 query.currentTimeout = nil
                 self:StartNextQuery()
@@ -481,7 +482,7 @@ function ATC:StartNextQuery()
     else
         -- 设置失败，直接视为未完成
         local name = GetUnitName(unit, true)
-        query.queryContent:OnQueryFailed(name .. ":失败")
+        query.queryContent:OnQueryFailed(name .. L.QUERY_FAILED_SUFFIX)
         query.currentUnit = nil
         self:StartNextQuery()
     end
@@ -527,8 +528,8 @@ end
 function ATC:SafeSendChatMessage(message, chatType)
     local success, err = pcall(SendChatMessage, message, chatType)
     if not success then
-        self:Print("消息发送失败: " .. tostring(err)) 
-        self:Print("(团队消息) " .. message)
+        self:Print(L.SEND_FAILED_PREFIX .. tostring(err)) 
+        self:Print(L.GROUP_MESSAGE_PREFIX .. message)
         return false
     end
     return true
@@ -537,13 +538,13 @@ end
 -- 打印消息
 function ATC:Debug(msg)
     if self.debug then 
-       DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00ACT_DEBUG|r: " .. msg)
+       DEFAULT_CHAT_FRAME:AddMessage(L.DEBUG_PREFIX .. msg)
     end
 end
 
 -- 打印消息
 function ATC:Print(msg)
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00成就团队检查|r: " .. msg)
+    DEFAULT_CHAT_FRAME:AddMessage(L.PRINT_PREFIX .. msg)
 end  
 
 -- 初始化插件
@@ -553,14 +554,14 @@ ATC:Init()
 SLASH_ACHIEVEMENTTEAMCHECKER1 = "/atc"
 SlashCmdList["ACHIEVEMENTTEAMCHECKER"] = function(msg)
     if msg == "debug" then
-        ATC:Print("ATC进入调试模式，Hook状态: " .. tostring(ATC.isHooked))
+        ATC:Print(L.DEBUG_MODE_STATUS .. tostring(ATC.isHooked))
         ATC.debug = true
     elseif msg == "hook" then
         ATC:HookAchievementUI()
     else
-        ATC:Print("用法:")
-        ATC:Print("/atc debug - 调试模式")
-        ATC:Print("/atc hook - 手动重新Hook成就界面")
+        ATC:Print(L.USAGE_HEADER)
+        ATC:Print(L.USAGE_DEBUG)
+        ATC:Print(L.USAGE_HOOK)
     end
 end
 

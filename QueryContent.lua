@@ -1,5 +1,6 @@
 
 local ATC = _G.AchievementTeamChecker
+local L = _G.ATCLocale
 
 -- 构建查询成就完成情况并通报的queryContent
 function ATC:CreateCompleteQuery(id, name)
@@ -52,44 +53,42 @@ function ATC:CreateCompleteQuery(id, name)
             local totalMembers = self.missingCount + self.completeCount + self.failedCount
             if self.missingCount == 0 then
 
-                local options = {
-                    string.format("果然[%s]这么简单的成就，大家都完成了。", achievementName),
-                    string.format("震惊！成就[%s]居然全员完成！你们是不是偷偷努力了？", achievementName),
-                }
+                local options = {}
+                for i, tmpl in ipairs(L.ALL_COMPLETE) do
+                    options[i] = string.format(tmpl, achievementName)
+                end
                 message = options[math.random(1, #options)]
 
             elseif self.completeCount == 0 then
 
-                local options = {
-                    string.format("哇有这么难吗，团队里竟无人获得成就[%s]？", achievementName),
-                    string.format("插件出BUG了吗，团队里怎么一个获得[%s]的都没有？", achievementName),  
-                }
+                local options = {}
+                for i, tmpl in ipairs(L.NONE_COMPLETE) do
+                    options[i] = string.format(tmpl, achievementName)
+                end
                 message = options[math.random(1, #options)]
 
             elseif self.missingCount <= self.completeCount then 
- 
-                local options = {
-                    string.format("怎么会还有人没有成就[%s]? %d/%d人未获得。", achievementName, self.missingCount, totalMembers),
-                    string.format("[%s]成就点击就送，还没有的%d/%d人赶快去刷。", achievementName, self.missingCount, totalMembers),
-                    string.format("[%s]成就有手就行，还没有的%d/%d人赶快去搞。", achievementName, self.missingCount, totalMembers),
-                }
+
+                local options = {}
+                for i, tmpl in ipairs(L.MOSTLY_MISSING) do
+                    options[i] = string.format(tmpl, achievementName, self.missingCount, totalMembers)
+                end
                 message = options[math.random(1, #options)]
-                messageExt = "未获得的萌新是:" .. table.concat(self.missingNames, ",")
+                messageExt = L.MISSING_LIST_PREFIX .. table.concat(self.missingNames, ",")
 
             elseif self.missingCount > self.completeCount then  
 
-                local options = {
-                    string.format("哇太强了！我们队伍里竟然有%d/%d人完成了成就[%s]。", self.completeCount, totalMembers, achievementName),
-                    string.format("[%s]成就怎么只有%d/%d人完成，不是点击就送吗？", achievementName, self.completeCount, self.totalMembers),
-                    string.format("[%s]成就怎么只有%d/%d人完成，不是有手就行吗？", achievementName, self.completeCount, self.totalMembers),
-                }
+                local options = {}
+                for i, tmpl in ipairs(L.MOSTLY_COMPLETE) do
+                    options[i] = string.format(tmpl, achievementName, self.completeCount, totalMembers)
+                end
                 message = options[math.random(1, #options)]
-                messageExt = "完成的大佬是:" .. table.concat(self.completeNames, ",")
+                messageExt = L.COMPLETE_LIST_PREFIX .. table.concat(self.completeNames, ",")
 
             end
 
             if self .failedCount > 0 then 
-                message = message .. string.format(" (%d人不在查询范围)", self.failedCount)
+                message = message .. string.format(L.OUT_OF_RANGE_SUFFIX, self.failedCount)
             end
     
             return {message, messageExt}
@@ -165,27 +164,24 @@ function ATC:CreatePointQuery(id, name)
             
             if #ranking > 0 then
                 -- 标题行
-                table.insert(messages, "成就点数排名：")
+                table.insert(messages, L.POINTS_RANK_TITLE)
                 
                 -- 排名内容
                 for i, player in ipairs(ranking) do
                     if i <= 10 then -- 最多显示前10名
-                        local rankText = string.format("%d. %s - %d点", i, player.name, player.points)
+                        local rankText = string.format(L.POINTS_RANK_ROW, i, player.name, player.points)
                         table.insert(messages, rankText)
                     end
                 end
                 
                 -- 添加失败人数信息
                 if self.failedCount > 0 then
-                    table.insert(messages, string.format("(%d人查询失败)", self.failedCount))
+                    table.insert(messages, string.format(L.QUERY_FAILED_COUNT, self.failedCount))
                 end
 
-                local comments = {
-                    "看来，人与人的差距，真的很大。"
-                }
-                table.insert(messages, comments[math.random(1, #comments)])
+                table.insert(messages, L.RANK_COMMENT[math.random(1, #L.RANK_COMMENT)])
             else
-                table.insert(messages, "暂无成就点数数据，可能大家都太低调了～")
+                table.insert(messages, L.NO_POINTS_DATA)
             end
             
             return messages
@@ -242,27 +238,24 @@ function ATC:CreateFeatQuery(id, name)
             
             if #ranking > 0 then
                 -- 标题行
-                table.insert(messages, "光辉事迹数量排名：")
+                table.insert(messages, L.FEAT_RANK_TITLE)
                 
                 -- 排名内容
                 for i, player in ipairs(ranking) do
                     if i <= 10 then -- 最多显示前10名
-                        local rankText = string.format("%d. %s - %d", i, player.name, player.points)
+                        local rankText = string.format(L.FEAT_RANK_ROW, i, player.name, player.points)
                         table.insert(messages, rankText)
                     end
                 end
                 
                 -- 添加失败人数信息
                 if self.failedCount > 0 then
-                    table.insert(messages, string.format("(%d人查询失败)", self.failedCount))
+                    table.insert(messages, string.format(L.QUERY_FAILED_COUNT, self.failedCount))
                 end
 
-                local comments = {
-                    "看来，人与人的差距，真的很大。"
-                }
-                table.insert(messages, comments[math.random(1, #comments)])
+                table.insert(messages, L.RANK_COMMENT[math.random(1, #L.RANK_COMMENT)])
             else
-                table.insert(messages, "暂无成就点数数据，可能大家都太低调了～")
+                table.insert(messages, L.NO_POINTS_DATA)
             end
             
             return messages
@@ -273,5 +266,8 @@ end
 
 function ATC:AchievementNameFilter(str)
     if #str == 0 then return str end
+    if not L.FILTER_ACHIEVEMENT_NAME then
+        return str
+    end
     return string.gsub(str, "^([%z\1-\127\194-\244][\128-\191]*)", "%1.")
 end

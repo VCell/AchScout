@@ -1,0 +1,11 @@
+## Interface: 50503, 50504
+## Title: AchScout
+## Notes: 成就面板增强，包括团队查询和成就搜索
+## Notes-enUS: Achievement pane enhancements: group achievement checks and achievement search
+## Author: 戒虑牧-狮心
+## Version: 1.0.1
+## RequiredDeps: Blizzard_AchievementUI
+
+Locale.lua
+Core.lua
+QueryContent.lua
