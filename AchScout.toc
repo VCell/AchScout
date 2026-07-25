@@ -1,4 +1,4 @@
-## Interface: 50503, 50504
+## Interface: 30405, 38001, 50503, 50504
 ## Title: AchScout
 ## Notes: 成就面板增强，包括团队查询和成就搜索
 ## Notes-enUS: Achievement pane enhancements: group achievement checks and achievement search
