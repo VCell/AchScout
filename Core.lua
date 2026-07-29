@@ -207,7 +207,7 @@ function ATC:AddSearchBox(parentFrame)
     end
 
     local searchBox = CreateFrame("EditBox", nil, parentFrame, "InputBoxTemplate")
-    searchBox:SetSize(170, 20)
+    searchBox:SetSize(80, 20)
     searchBox:SetPoint("LEFT", parentFrame.featButton, "RIGHT", 8, 0)
     searchBox:SetFrameStrata("HIGH")
     searchBox:SetFrameLevel(parentFrame:GetFrameLevel() + 10)
@@ -216,11 +216,28 @@ function ATC:AddSearchBox(parentFrame)
     searchBox:SetMaxLetters(80)
     searchBox:SetTextInsets(6, 6, 0, 0)
 
-    local label = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    label:SetPoint("BOTTOMLEFT", searchBox, "TOPLEFT", 0, 2)
-    label:SetText(L.SEARCH_LABEL)
+   -- 用输入框内的浅色提示字代替原来悬浮在框上方的标签，省一行空间，也更符合原生输入框的观感
+    -- 注意：不要用 ARTWORK 层，InputBoxTemplate自带的边框贴图也在这一层，子层级顺序没保证的话会被盖住；
+    -- 用 OVERLAY 层（比 BACKGROUND/BORDER/ARTWORK 都高）确保稳定盖在输入框贴图之上
+    local placeholder = searchBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    placeholder:SetPoint("LEFT", searchBox, "LEFT", 8, 0)
+    placeholder:SetJustifyH("LEFT")
+    placeholder:SetTextColor(0.6, 0.6, 0.6, 1)
+    placeholder:SetText(L.SEARCH_LABEL)
+
+    local function UpdatePlaceholder()
+        if searchBox:GetText() == "" and not searchBox:HasFocus() then
+            placeholder:Show()
+        else
+            placeholder:Hide()
+        end
+    end
+    searchBox:HookScript("OnEditFocusGained", UpdatePlaceholder)
+    searchBox:HookScript("OnEditFocusLost", UpdatePlaceholder)
+    UpdatePlaceholder()
 
     searchBox:SetScript("OnTextChanged", function(box, userInput)
+        UpdatePlaceholder()
         if userInput then
             ATC:ShowAchievementSearch(box:GetText())
         end
@@ -259,12 +276,15 @@ end
 function ATC:AddQueryButtonToAchievement(button, category, achievement)
     if not button or not achievement or self.isHooked == false then return end
 
-    local id, name, _, _, _, _, _, description, _, icon = GetAchievementInfo(category, achievement)
+    local id, name, _, completed, _, _, _, description, _, icon, _, _, wasEarnedByMe = GetAchievementInfo(category, achievement)
     if not id then return end
 
     if not self:MatchesSearch(name, description) then
         button:SetHeight(1)
         button:Hide()
+        if button.atcOthersMarker then
+            button.atcOthersMarker:Hide()
+        end
         return
     end
 
@@ -299,7 +319,7 @@ function ATC:AddQueryButtonToAchievement(button, category, achievement)
         queryButton:SetScript("OnLeave", function()
             GameTooltip:Hide()
         end)
-        
+
         button.queryButton = queryButton
     end
     queryButton:SetScript("OnClick", function()
@@ -307,6 +327,36 @@ function ATC:AddQueryButtonToAchievement(button, category, achievement)
         ATC:QueryTeamAchievement(query)
     end)
     queryButton:Show()
+
+    -- 标记"账号下其他角色完成、但当前角色未完成"的成就：在成就项最右侧加一个红色色块
+    self:MarkOthersCompleted(button, completed, wasEarnedByMe)
+end
+
+-- 给"已完成，但不是当前角色完成的（账号下其他角色完成）"成就，在成就项最右侧添加一个
+-- 70x70的红色色块作为标记；未命中该条件时隐藏（这个button控件会在滚动时被不同成就复用，
+-- 所以色块也要复用、不能重复创建）
+function ATC:MarkOthersCompleted(button, completed, wasEarnedByMe)
+    local marker = button.atcOthersMarker
+    if not marker then
+        marker = CreateFrame("Frame", nil, button)
+        marker:SetSize(70, 70)
+        marker:SetPoint("RIGHT", button, "RIGHT", -5, 0)
+        marker:SetFrameLevel(button:GetFrameLevel())
+        marker:EnableMouse(false) -- 不拦截鼠标事件，避免挡住成就项本身的点击/悬停
+
+        local tex = marker:CreateTexture(nil, "OVERLAY")
+        tex:SetAllPoints(marker)
+        tex:SetColorTexture(1, 0, 0, 0.5)
+        marker.texture = tex
+
+        button.atcOthersMarker = marker
+    end
+
+    if completed and not wasEarnedByMe then
+        marker:Show()
+    else
+        marker:Hide()
+    end
 end
 
 --测试
