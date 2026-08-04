@@ -1,11 +1,15 @@
 -- AchievementTeamChecker
-local L = _G.ATCLocale
+local _, AchScout = ...
+local L = AchScout.Locale
+local Logger = AchScout.Logger
+local QueryContent = AchScout.QueryContent
+local Completion = AchScout.Completion
+
 local ATC = {
     achievementButtons = {},
     eventFrame = nil,
     isHooked = false,
     queryState = nil, 
-    debug = false,
     MESSAGE_DELAY = 0.5,
     searchText = "",
     currentCategory = nil, -- 当前浏览的分类，通过AchievementButton_DisplayAchievement间接记录
@@ -23,21 +27,9 @@ function ATC:Init()
     end)
 end
 
--- 初始化
-function ATC:SetDebug(debug)
-    self.debug = debug
-end
-
 -- 玩家登录后开始尝试Hook成就界面
 function ATC:PLAYER_LOGIN()
     self:HookAchievementUI()
-    
-    -- -- 定期检查成就界面是否加载
-    -- C_Timer.NewTicker(5, function()
-    --     if not self.isHooked and AchievementFrame and AchievementFrame:IsShown() then
-    --         self:HookAchievementUI()
-    --     end
-    -- end)
 end
 
 
@@ -66,7 +58,7 @@ function ATC:HookAchievementUI()
         self:AddOverviewButton(achievementsFrame)
         self:AddSearchBox(achievementsFrame)
     else 
-        self.Print("AddOverviewButton Failed")
+        Logger:Print("AddOverviewButton Failed")
     end
 
     if AchievementButton_DisplayAchievement then
@@ -77,21 +69,9 @@ function ATC:HookAchievementUI()
         end)
         self:InstallCustomAchievementsUpdate()
         self.isHooked = true
-        self:Print(L.ADDON_LOADED)
+        Logger:Print(L.ADDON_LOADED)
         return
     end
-    
-    -- -- 方法2: 监听成就框架显示事件
-    -- self.eventFrame:RegisterEvent("ACHIEVEMENT_EARNED")
-    -- self.eventFrame:SetScript("OnEvent", function(_, event, ...)
-    --     if event == "ACHIEVEMENT_EARNED" then
-    --         if AchievementFrame and AchievementFrame:IsVisible() then
-    --             self:DelayHook()
-    --         end
-    --     elseif event == "INSPECT_ACHIEVEMENT_READY" then
-    --         self:INSPECT_ACHIEVEMENT_READY(...)
-    --     end
-    -- end)
 end
 
 -- 接管 AchievementFrameAchievements_Update：
@@ -263,9 +243,52 @@ function ATC:DelayHook()
                 ATC:AddQueryButtonToAchievement(button, category, achievement)
             end)
             self.isHooked = true
-            self:Print(L.ADDON_LOADED_DELAYHOOK)
+            Logger:Print(L.ADDON_LOADED_DELAYHOOK)
         end
     end)
+end
+
+
+-- 在成就项左下角显示"完成该成就的玩家百分比"，悬停时提示统计口径。
+-- percent 传 nil 表示没有数据（比如还没查询过），会直接隐藏。
+local function UpdateCompletionPercentText(button, id)
+    local percent = Completion.rate[tonumber(id)]
+    local holder = button.atcPercentHolder
+    if not holder then
+        holder = CreateFrame("Frame", nil, button)
+        holder:SetSize(70, 14)
+        holder:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 15, 3)
+        holder:SetFrameLevel(button:GetFrameLevel() + 1)
+
+        local text = holder:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        text:SetPoint("LEFT", holder, "LEFT", 0, 0)
+        text:SetJustifyH("LEFT")
+        holder.text = text
+
+        holder:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(string.format(L.COMPLETION_PERCENT_TOOLTIP_TITLE, self.percent and self.percent * 100 or 0))
+            local desc = string.format(L.COMPLETION_PERCENT_TOOLTIP_DESC, Completion.date, Completion.samples)
+            GameTooltip:AddLine(desc, 1, 1, 1, true)
+            
+            GameTooltip:Show()
+        end)
+        holder:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        button.atcPercentHolder = holder
+    end
+
+    holder.percent = percent
+
+    if percent == nil then
+        holder:Hide()
+        return
+    end
+
+    holder.text:SetText(string.format("%.2f%%", percent * 100))
+    holder:Show()
 end
 
 -- 添加查询按钮到成就；同时承担"按搜索词过滤显示"的职责：
@@ -295,7 +318,7 @@ function ATC:AddQueryButtonToAchievement(button, category, achievement)
         button:SetHeight(ACHIEVEMENTBUTTON_COLLAPSEDHEIGHT)
     end
 
-    ATC:Debug(string.format("AddQueryButtonToAchievement name:%s category:%s achievement:%s",name, tostring(category), tostring(achievement)))
+    Logger:Debug(string.format("AddQueryButtonToAchievement name:%s category:%s achievement:%s",name, tostring(category), tostring(achievement)))
     button.description:SetText(description..' ID: '..id)
     
     -- 创建查询按钮
@@ -323,13 +346,16 @@ function ATC:AddQueryButtonToAchievement(button, category, achievement)
         button.queryButton = queryButton
     end
     queryButton:SetScript("OnClick", function()
-        local query = ATC:CreateCompleteQuery(id, name)
+        local query = QueryContent.CreateCompleteQuery(id, name)
         ATC:QueryTeamAchievement(query)
     end)
     queryButton:Show()
 
     -- 标记"账号下其他角色完成、但当前角色未完成"的成就：在成就项最右侧加一个红色色块
     self:MarkOthersCompleted(button, completed, wasEarnedByMe)
+
+    UpdateCompletionPercentText(button, id)
+    --UpdateCompletionPercentText(button, 0.1234)
 end
 
 -- 给"已完成，但不是当前角色完成的（账号下其他角色完成）"成就，在成就项最右侧添加一个
@@ -369,7 +395,7 @@ function ATC:AddOverviewButton(parentFrame)
     pointsButton:SetToplevel(true)
     pointsButton:SetPoint("TOP", AchievementFrame, "TOP", -15, -10)
     pointsButton:SetScript("OnClick", function()
-        local query = ATC:CreatePointQuery()
+        local query = QueryContent.CreatePointQuery()
         ATC:QueryTeamAchievement(query)
     end)
     pointsButton:SetNormalFontObject("GameFontNormal")
@@ -393,7 +419,7 @@ function ATC:AddOverviewButton(parentFrame)
     featButton:SetToplevel(true)
     featButton:SetPoint("LEFT", pointsButton, "RIGHT", 0, 0) -- 放在点数按钮右边
     featButton:SetScript("OnClick", function()
-        local query = ATC:CreateFeatQuery()
+        local query = QueryContent.CreateFeatQuery()
         ATC:QueryTeamAchievement(query)
     end)
     featButton:SetNormalFontObject("GameFontNormal")
@@ -420,7 +446,7 @@ end
 
 -- 成就数据就绪事件
 function ATC:INSPECT_ACHIEVEMENT_READY(guid)
-    ATC:Debug("INSPECT_ACHIEVEMENT_READY ".. guid)
+    Logger:Debug("INSPECT_ACHIEVEMENT_READY ".. guid)
     if not self.queryState then return end
 
     local query = self.queryState
@@ -438,7 +464,7 @@ function ATC:INSPECT_ACHIEVEMENT_READY(guid)
         query.currentUnit = nil
         self:StartNextQuery()
     else
-        ATC:Debug("INSPECT_ACHIEVEMENT_READY ERROR GUID:".. guid)
+        Logger:Debug("INSPECT_ACHIEVEMENT_READY ERROR GUID:".. guid)
     end
 
 end
@@ -446,15 +472,15 @@ end
 -- 查询团队成就
 function ATC:QueryTeamAchievement(queryContent)
     if not IsInGroup() and not IsInRaid() then
-        self:Print(L.NOT_IN_GROUP)
+        Logger:Print(L.NOT_IN_GROUP)
         return
     end
     if self.queryState ~= nil then
-        self:Print(L.QUERY_IN_PROGRESS)
+        Logger:Print(L.QUERY_IN_PROGRESS)
         return
     end
 
-    ATC:Debug(string.format("QueryTeamAchievement start"))
+    Logger:Debug(string.format("QueryTeamAchievement start"))
     -- 重置状态
 
     self:RegisterAchievementEvents()
@@ -476,20 +502,19 @@ function ATC:QueryTeamAchievement(queryContent)
             table.insert(query.pendingQueries, unit)
         end
     end
-    -- ATC:Debug("QueryTeamAchievement  pendingQueries count :"..tostring(#(self.queryState.pendingQueries)))
 
     if #query.pendingQueries <= 0 then
         -- 没有其他玩家需要查询，直接报告结果
         self:ReportResults()
     else
         query.isQuerying = true
-        self:Print(L.QUERY_START)
+        Logger:Print(L.QUERY_START)
         self:StartNextQuery()
         
         -- 设置总超时（备用，防止某些情况下查询卡住）
         query.overallTimeout = C_Timer.After(30, function()
             if query.isQuerying then
-                self:Debug("查询总超时，强制结束查询")
+                Logger:Debug("查询总超时，强制结束查询")
                 self:ReportResults(true)
             end
         end)
@@ -498,7 +523,7 @@ end
 
 -- 开始下一个查询
 function ATC:StartNextQuery()
-    ATC:Debug("StartNextQuery")
+    Logger:Debug("StartNextQuery")
     local query = self.queryState
     ClearAchievementComparisonUnit()
     
@@ -514,14 +539,14 @@ function ATC:StartNextQuery()
     local success = false
     if UnitIsConnected(unit) then 
         success = SetAchievementComparisonUnit(unit)
-        ATC:Debug(string.format("SetAchievementComparisonUnit unit:%s res:%s", unit, tostring(success)))
+        Logger:Debug(string.format("SetAchievementComparisonUnit unit:%s res:%s", unit, tostring(success)))
     end
     
     if success then
         -- 为当前查询设置单独的超时（3秒）
         query.currentTimeout = C_Timer.After(3, function()
             if query.currentUnit == unit then
-                ATC:Debug(string.format("查询超时: %s", unit))
+                Logger:Debug(string.format("查询超时: %s", unit))
                 local name = GetUnitName(unit, true)
                 query.queryContent:OnQueryFailed(name .. L.QUERY_TIMEOUT_SUFFIX)
                 query.currentUnit = nil
@@ -541,7 +566,7 @@ end
 
 -- 报告结果
 function ATC:ReportResults(isTimeout)
-    ATC:Debug("ReportResults")
+    Logger:Debug("ReportResults")
     if not self.queryState then return end
     
    local query = self.queryState
@@ -563,7 +588,7 @@ function ATC:ReportResults(isTimeout)
     self.queryState = nil
     
     local messages = query.queryContent:GetReport()
-    ATC:Debug(tostring(messages))
+    Logger:Debug(tostring(messages))
 
     local chatType = IsInRaid() and "RAID" or "PARTY"
 
@@ -578,24 +603,12 @@ end
 function ATC:SafeSendChatMessage(message, chatType)
     local success, err = pcall(SendChatMessage, message, chatType)
     if not success then
-        self:Print(L.SEND_FAILED_PREFIX .. tostring(err)) 
-        self:Print(L.GROUP_MESSAGE_PREFIX .. message)
+        Logger:Print(L.SEND_FAILED_PREFIX .. tostring(err)) 
+        Logger:Print(L.GROUP_MESSAGE_PREFIX .. message)
         return false
     end
     return true
 end
-
--- 打印消息
-function ATC:Debug(msg)
-    if self.debug then 
-       DEFAULT_CHAT_FRAME:AddMessage(L.DEBUG_PREFIX .. msg)
-    end
-end
-
--- 打印消息
-function ATC:Print(msg)
-    DEFAULT_CHAT_FRAME:AddMessage(L.PRINT_PREFIX .. msg)
-end  
 
 -- 初始化插件
 ATC:Init()
@@ -604,16 +617,14 @@ ATC:Init()
 SLASH_ACHIEVEMENTTEAMCHECKER1 = "/atc"
 SlashCmdList["ACHIEVEMENTTEAMCHECKER"] = function(msg)
     if msg == "debug" then
-        ATC:Print(L.DEBUG_MODE_STATUS .. tostring(ATC.isHooked))
-        ATC.debug = true
+        Logger:Print(L.DEBUG_MODE_STATUS .. tostring(ATC.isHooked))
+        Logger:SetDebug(true)
     elseif msg == "hook" then
         ATC:HookAchievementUI()
     else
-        ATC:Print(L.USAGE_HEADER)
-        ATC:Print(L.USAGE_DEBUG)
-        ATC:Print(L.USAGE_HOOK)
+        Logger:Print(L.USAGE_HEADER)
+        Logger:Print(L.USAGE_DEBUG)
+        Logger:Print(L.USAGE_HOOK)
     end
 end
 
--- 全局引用
-_G.AchievementTeamChecker = ATC

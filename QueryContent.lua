@@ -1,9 +1,18 @@
+local _, AchScout = ...
+local L = AchScout.Locale
+local Logger = AchScout.Logger
+local QueryContent = {}
 
-local ATC = _G.AchievementTeamChecker
-local L = _G.ATCLocale
+local function AchievementNameFilter(str)
+    if #str == 0 then return str end
+    if not L.FILTER_ACHIEVEMENT_NAME then
+        return str
+    end
+    return string.gsub(str, "^([%z\1-\127\194-\244][\128-\191]*)", "%1.")
+end
 
 -- 构建查询成就完成情况并通报的queryContent
-function ATC:CreateCompleteQuery(id, name)
+function QueryContent.CreateCompleteQuery(id, name)
     return {
         missingNames = {},    -- 未完成成就的玩家名单
         failedNames = {},     -- 查询失败列表
@@ -16,7 +25,7 @@ function ATC:CreateCompleteQuery(id, name)
         
 
         QueryForPlayer = function(self) 
-            ATC:Debug("QueryForPlayer start" )
+            Logger:Debug("QueryForPlayer start" )
             local completed = select(13, GetAchievementInfo(self.achievementID))
             
             if not completed then
@@ -31,10 +40,10 @@ function ATC:CreateCompleteQuery(id, name)
         end, 
 
         FetchResult = function(self, unit)
-            ATC:Debug("FetchResult start")
+            Logger:Debug("FetchResult start")
             local isCompleted, _, _, _  = GetAchievementComparisonInfo(self.achievementID)
             local name = GetUnitName(unit, true)
-            ATC:Debug(string.format("GetAchievementComparisonInfo unit:%s, name:%s, id:%d, result:%s", unit, name, self.achievementID, tostring(isCompleted)))
+            Logger:Debug(string.format("GetAchievementComparisonInfo unit:%s, name:%s, id:%d, result:%s", unit, name, self.achievementID, tostring(isCompleted)))
 
             if not isCompleted then
                 self:addMissingPlayer(name)
@@ -46,10 +55,10 @@ function ATC:CreateCompleteQuery(id, name)
         end,
 
         GetReport = function(self)
-            ATC:Debug("GetReport start")
+            Logger:Debug("GetReport start")
             local message, messageExt
 
-            local achievementName = ATC:AchievementNameFilter(self.achievementName)
+            local achievementName = AchievementNameFilter(self.achievementName)
             local totalMembers = self.missingCount + self.completeCount + self.failedCount
             if self.missingCount == 0 then
 
@@ -98,7 +107,7 @@ function ATC:CreateCompleteQuery(id, name)
         addMissingPlayer = function(self, playerName)
             table.insert(self.missingNames, playerName)
             self.missingCount = self.missingCount + 1
-            ATC:Debug(playerName .. " 未完成")
+            Logger:Debug(playerName .. " 未完成")
         end,
         
         -- 添加完成玩家
@@ -117,13 +126,13 @@ function ATC:CreateCompleteQuery(id, name)
 end
 
 -- 构建查询成就点数，并通报成就点排名的queryContent
-function ATC:CreatePointQuery(id, name)
+function QueryContent.CreatePointQuery(id, name)
     return {
         points = {}, -- name-point的map
         failedCount = 0,      -- 查询失败人数
 
         QueryForPlayer = function(self) 
-            ATC:Debug("QueryForPlayer start" )
+            Logger:Debug("QueryForPlayer start" )
             local myPoints = GetTotalAchievementPoints()
             local name = GetUnitName("player", true)
             self.points[name] = myPoints
@@ -134,16 +143,16 @@ function ATC:CreatePointQuery(id, name)
         end, 
 
         FetchResult = function(self, unit)
-            ATC:Debug("FetchResult start")
+            Logger:Debug("FetchResult start")
             local point = GetComparisonAchievementPoints()
             local name = GetUnitName(unit, true)
-            ATC:Debug(string.format("GetComparisonAchievementPoints unit:%s, %d", unit, point))
+            Logger:Debug(string.format("GetComparisonAchievementPoints unit:%s, %d", unit, point))
 
             self.points[name] = point
         end,
 
         GetReport = function(self)
-            ATC:Debug("GetReport start")
+            Logger:Debug("GetReport start")
             
             -- 将点数数据转换为可排序的数组
             local ranking = {}
@@ -191,13 +200,13 @@ function ATC:CreatePointQuery(id, name)
 end
 
 -- 构建查询成就点数，并通报成就点排名的queryContent
-function ATC:CreateFeatQuery(id, name)
+function QueryContent.CreateFeatQuery(id, name)
     return {
         points = {}, -- name-point的map
         failedCount = 0,      -- 查询失败人数
 
         QueryForPlayer = function(self) 
-            ATC:Debug("QueryForPlayer start" )
+            Logger:Debug("QueryForPlayer start" )
             local _,complete,_ = GetCategoryNumAchievements(81)
             local name = GetUnitName("player", true)
             self.points[name] = complete
@@ -208,16 +217,16 @@ function ATC:CreateFeatQuery(id, name)
         end, 
 
         FetchResult = function(self, unit)
-            ATC:Debug("FetchResult start")
+            Logger:Debug("FetchResult start")
             local point = GetComparisonCategoryNumAchievements(81)
             local name = GetUnitName(unit, true)
-            ATC:Debug(string.format("GetComparisonCategoryNumAchievements unit:%s, %d", unit, point))
+            Logger:Debug(string.format("GetComparisonCategoryNumAchievements unit:%s, %d", unit, point))
 
             self.points[name] = point
         end,
 
         GetReport = function(self)
-            ATC:Debug("GetReport start")
+            Logger:Debug("GetReport start")
             
             -- 将点数数据转换为可排序的数组
             local ranking = {}
@@ -264,10 +273,4 @@ function ATC:CreateFeatQuery(id, name)
     }
 end
 
-function ATC:AchievementNameFilter(str)
-    if #str == 0 then return str end
-    if not L.FILTER_ACHIEVEMENT_NAME then
-        return str
-    end
-    return string.gsub(str, "^([%z\1-\127\194-\244][\128-\191]*)", "%1.")
-end
+AchScout.QueryContent = QueryContent

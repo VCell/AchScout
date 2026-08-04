@@ -1,9 +1,6 @@
--- Locale.lua
--- 集中管理所有面向玩家的文本，按 GetLocale() 切换。
--- 新增语言：复制一份 elseif locale == "xxXX" then ... 区块，翻译对应字段即可。
+local _, AchScout = ...
 
 local L = {}
-_G.ATCLocale = L
 
 local locale = GetLocale()
 
@@ -37,7 +34,7 @@ L.USAGE_HEADER                = "用法:"
 L.USAGE_DEBUG                 = "/atc debug - 调试模式"
 L.USAGE_HOOK                  = "/atc hook - 手动重新Hook成就界面"
 
-L.DEBUG_PREFIX                = "|cFF00FF00ACT_DEBUG|r: "
+L.DEBUG_PREFIX                = "|cFF00FF00AchScout_DEBUG|r: "
 L.PRINT_PREFIX                = "|cFF00FF00成就团队检查|r: "
 
 -- 完成情况通报（{name} 由 AchievementNameFilter 处理过的成就名）
@@ -70,6 +67,11 @@ L.FEAT_RANK_ROW                = "%d. %s - %d"
 L.QUERY_FAILED_COUNT           = "(%d人查询失败)"
 L.RANK_COMMENT                 = { "看来，人与人的差距，真的很大。" }
 L.NO_POINTS_DATA               = "暂无成就点数数据，可能大家都太低调了～"
+
+L.COMPLETION_PERCENT_TOOLTIP_TITLE = "%.2f%%的玩家完成了该成就"
+L.COMPLETION_PERCENT_TOOLTIP_DESC = "采样日期：%s, 采样人数：%d"
+
+
 
 -- 是否对成就名做"插入分隔符"处理（避免中文聊天过滤器误判/触发表情替换等）。
 -- 这个处理是针对中文字符设计的，非中文语言客户端不需要。
@@ -139,5 +141,9 @@ if locale == "enUS" or locale == "enGB" then
     L.RANK_COMMENT                 = { "Turns out people really aren't equal." }
     L.NO_POINTS_DATA               = "No achievement point data yet, maybe everyone's just modest~"
 
+    L.COMPLETION_PERCENT_TOOLTIP_TITLE = "%d%% of players have completed this achievement"
+    L.COMPLETION_PERCENT_TOOLTIP_DESC = "Sample date: %s, Sample size: %d"
     L.FILTER_ACHIEVEMENT_NAME       = false
 end
+
+AchScout.Locale = L

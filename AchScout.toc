@@ -6,6 +6,9 @@
 ## Version: 1.0.3
 ## RequiredDeps: Blizzard_AchievementUI
 
+CompletionRate.lua
 Locale.lua
-Core.lua
+Utils.lua
 QueryContent.lua
+Core.lua
+
