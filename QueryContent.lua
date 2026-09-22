@@ -114,13 +114,13 @@ function QueryContent.CreateCompleteQuery(id, name)
         addCompletePlayer = function(self, playerName)
             table.insert(self.completeNames, playerName)
             self.completeCount = self.completeCount + 1
-            ATC:Debug(playerName .. "已完成")
+            Logger:Debug(playerName .. "已完成")
         end,
 
         addFailedPlayer = function(self, playerName)
             table.insert(self.failedNames, playerName)
             self.failedCount = self.failedCount + 1 
-            ATC:Debug(playerName .. "查询失败")
+            Logger:Debug(playerName .. "查询失败")
         end
     }
 end
