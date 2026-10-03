@@ -1,0 +1,8 @@
+## Interface: 30405, 38001, 50503, 50504
+## Title: AchScanner
+## Notes: 采集成就信息
+## Author: 戒虑牧-狮心
+## Version: 1.0.1
+## SavedVariables: AchScannerDB
+
+Core.lua
